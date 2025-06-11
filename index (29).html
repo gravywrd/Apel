@@ -1,0 +1,187 @@
+<html class="scroll-smooth" lang="id">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1" name="viewport"/>
+  <title>
+   Notifikasi Apel Malam
+  </title>
+  <script src="https://cdn.tailwindcss.com">
+  </script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;display=swap" rel="stylesheet"/>
+  <style>
+   body {
+      font-family: "Inter", sans-serif;
+    }
+  </style>
+ </head>
+ <body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="max-w-md w-full bg-white rounded-lg shadow-md p-6 text-center">
+   <img alt="Ilustrasi apel merah segar dengan daun hijau di latar putih" class="mx-auto mb-4" height="150" loading="lazy" src="https://storage.googleapis.com/a1aa/image/0a5c01a7-b336-4c34-c5d1-346623b36061.jpg" width="150"/>
+   <h1 class="text-2xl font-semibold mb-2 text-gray-800">
+    Notifikasi Apel Malam
+   </h1>
+   <p class="text-gray-600 mb-4">
+    Aplikasi ini akan menampilkan notifikasi setiap malam Senin, Selasa, Rabu,
+      Kamis, Jumat, dan Minggu pada jam 18:21, 19:30, 19:38, dan 19:29.
+   </p>
+   <button class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded inline-flex items-center justify-center mx-auto" id="enableNotifBtn">
+    <i class="fas fa-bell mr-2">
+    </i>
+    Aktifkan Notifikasi
+   </button>
+   <p class="mt-4 text-sm text-gray-700" id="statusMsg">
+   </p>
+  </div>
+  <script>
+   // Hari yang diinginkan: Senin(1), Selasa(2), Rabu(3), Kamis(4), Jumat(5), Minggu(0)
+    const notificationDays = [0, 1, 2, 3, 4, 5];
+
+    // Jam notifikasi dalam format [jam, menit]
+    const notificationTimes = [
+      [18, 21],
+      [19, 30],
+      [19, 38],
+      [19, 29],
+    ];
+
+    // Fungsi untuk cek apakah hari ini adalah hari notifikasi
+    function isNotificationDay(date) {
+      return notificationDays.includes(date.getDay());
+    }
+
+    // Fungsi untuk menampilkan notifikasi apel
+    function showApelNotification() {
+      const notifTitle = "Pengingat Apel Malam";
+      const notifOptions = {
+        body: "Ingat apel malam hari ini. Jangan lupa hadir!",
+        icon: "https://placehold.co/128x128/png?text=Apel+Notif",
+        badge: "https://placehold.co/64x64/png?text=Apel",
+        vibrate: [200, 100, 200],
+        tag: "apel-malam-notification",
+        renotify: true,
+      };
+      if (Notification.permission === "granted") {
+        new Notification(notifTitle, notifOptions);
+      }
+    }
+
+    // Fungsi untuk mendapatkan milidetik sampai waktu notifikasi berikutnya
+    function getMsUntilNextNotification() {
+      const now = new Date();
+
+      // Cari waktu notifikasi berikutnya hari ini atau hari berikutnya
+      // Kita cek semua waktu notifikasi hari ini yang belum lewat, pilih yang paling dekat
+      // Jika tidak ada, cari hari notifikasi berikutnya dan waktu notifikasi pertama di hari itu
+
+      // Filter waktu notifikasi hari ini yang belum lewat
+      const todayTimesLeft = notificationTimes
+        .map(([h, m]) => {
+          const notifTime = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            h,
+            m,
+            0,
+            0
+          );
+          return notifTime > now ? notifTime : null;
+        })
+        .filter((t) => t !== null);
+
+      // Jika hari ini adalah hari notifikasi dan ada waktu notifikasi yang belum lewat
+      if (isNotificationDay(now) && todayTimesLeft.length > 0) {
+        // Ambil waktu notifikasi terdekat hari ini
+        const nextNotifTime = todayTimesLeft.reduce((a, b) =>
+          a < b ? a : b
+        );
+        return nextNotifTime - now;
+      }
+
+      // Jika tidak, cari hari notifikasi berikutnya dan waktu notifikasi pertama di hari itu
+      let nextDay = new Date(now);
+      nextDay.setDate(nextDay.getDate() + 1);
+      while (!isNotificationDay(nextDay)) {
+        nextDay.setDate(nextDay.getDate() + 1);
+      }
+      // Waktu notifikasi pertama di hari berikutnya
+      const [h, m] = notificationTimes[0];
+      const nextNotifTime = new Date(
+        nextDay.getFullYear(),
+        nextDay.getMonth(),
+        nextDay.getDate(),
+        h,
+        m,
+        0,
+        0
+      );
+      return nextNotifTime - now;
+    }
+
+    // Fungsi untuk mulai jadwal notifikasi berulang
+    function scheduleNotifications() {
+      // Fungsi untuk schedule notifikasi berikutnya
+      function scheduleNext() {
+        const msUntilNext = getMsUntilNextNotification();
+
+        setTimeout(() => {
+          // Tampilkan notifikasi jika hari dan waktu sesuai
+          const now = new Date();
+          if (isNotificationDay(now)) {
+            // Karena ada 4 waktu notifikasi per hari, cek apakah sekarang mendekati salah satu waktu tersebut
+            // Karena setTimeout bisa delay, kita tampilkan notifikasi jika sekarang +/- 1 menit dari waktu notifikasi
+            const nowH = now.getHours();
+            const nowM = now.getMinutes();
+
+            for (const [h, m] of notificationTimes) {
+              if (
+                Math.abs(nowH * 60 + nowM - (h * 60 + m)) <= 1
+              ) {
+                showApelNotification();
+                break;
+              }
+            }
+          }
+          // Schedule notifikasi berikutnya
+          scheduleNext();
+        }, msUntilNext);
+      }
+      scheduleNext();
+    }
+
+    // Fungsi untuk minta izin notifikasi dan mulai jadwal
+    function enableNotifications() {
+      if (!("Notification" in window)) {
+        statusMsg.textContent = "Browser Anda tidak mendukung notifikasi.";
+        return;
+      }
+
+      if (Notification.permission === "granted") {
+        statusMsg.textContent = "Notifikasi sudah diaktifkan.";
+        scheduleNotifications();
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then((permission) => {
+          if (permission === "granted") {
+            statusMsg.textContent = "Notifikasi berhasil diaktifkan.";
+            scheduleNotifications();
+          } else {
+            statusMsg.textContent = "Izin notifikasi ditolak.";
+          }
+        });
+      } else {
+        statusMsg.textContent = "Izin notifikasi sudah ditolak sebelumnya.";
+      }
+    }
+
+    const enableNotifBtn = document.getElementById("enableNotifBtn");
+    const statusMsg = document.getElementById("statusMsg");
+
+    enableNotifBtn.addEventListener("click", () => {
+      enableNotifications();
+      enableNotifBtn.disabled = true;
+      enableNotifBtn.classList.add("opacity-50", "cursor-not-allowed");
+    });
+  </script>
+ </body>
+</html>
